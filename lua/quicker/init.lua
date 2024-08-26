@@ -140,7 +140,11 @@ M.open = function(opts)
     end
     height = #vim.fn.getloclist(0)
   else
-    vim.cmd.copen()
+    -- For using tpope/vim-dispatch
+    local ok, _ = pcall(vim.cmd.Copen)
+    if not ok then
+      vim.cmd.copen()
+    end
     height = #vim.fn.getqflist()
   end
 
