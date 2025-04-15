@@ -1,3 +1,5 @@
+## Personal fork of `stevearc/quicker.nvim` to fix an issue I had with this plugin and `tpope/vim-dispatch`
+
 # quicker.nvim
 
 Improved UI and workflow for the Neovim quickfix
