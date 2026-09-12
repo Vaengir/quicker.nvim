@@ -5,17 +5,17 @@ local function setup(opts)
   local config = require("quicker.config")
   config.setup(opts)
 
-  local aug = vim.api.nvim_create_augroup("quicker", { clear = true })
-  local aug_opts = vim.api.nvim_create_augroup("quicker_opts", { clear = false })
-  local aug_cursor = vim.api.nvim_create_augroup("quicker_cursor", { clear = false })
-  local aug_editor = vim.api.nvim_create_augroup("quicker_editor", { clear = false })
+  local aug = vim.api.nvim_create_augroup("quicker", { clear = true, })
+  local aug_opts = vim.api.nvim_create_augroup("quicker_opts", { clear = false, })
+  local aug_cursor = vim.api.nvim_create_augroup("quicker_cursor", { clear = false, })
+  local aug_editor = vim.api.nvim_create_augroup("quicker_editor", { clear = false, })
   vim.api.nvim_create_autocmd("FileType", {
     pattern = "qf",
     group = aug,
     desc = "quicker.nvim set up quickfix mappings",
     callback = function(args)
-      vim.api.nvim_clear_autocmds({ group = aug_opts, buffer = args.buf })
-      vim.api.nvim_clear_autocmds({ group = aug_cursor, buffer = args.buf })
+      vim.api.nvim_clear_autocmds({ group = aug_opts, buffer = args.buf, })
+      vim.api.nvim_clear_autocmds({ group = aug_cursor, buffer = args.buf, })
 
       require("quicker.highlight").set_highlight_groups()
       require("quicker.opts").set_opts(args.buf, aug_opts)
@@ -47,13 +47,13 @@ local function setup(opts)
       group = aug,
       desc = "quicker.nvim set up quickfix editing",
       callback = function(args)
-        vim.api.nvim_clear_autocmds({ group = aug_editor, buffer = args.buf })
+        vim.api.nvim_clear_autocmds({ group = aug_editor, buffer = args.buf, })
         require("quicker.editor").setup_editor(args.buf, aug_editor)
       end,
     })
   end
   if config.follow.enabled then
-    vim.api.nvim_create_autocmd({ "CursorMoved", "BufEnter" }, {
+    vim.api.nvim_create_autocmd({ "CursorMoved", "BufEnter", }, {
       desc = "quicker.nvim scroll to nearest location in quickfix",
       pattern = "*",
       group = aug,
@@ -68,14 +68,14 @@ local function setup(opts)
   -- If the quickfix/loclist is already open, refresh it so the quickfixtextfunc will take effect.
   -- This is required for lazy-loading to work properly.
   vim.schedule(function()
-    local list = vim.fn.getqflist({ all = 0 })
+    local list = vim.fn.getqflist({ all = 0, })
     if not vim.tbl_isempty(list.items) then
       vim.fn.setqflist({}, "r", list)
     end
     for _, winid in ipairs(vim.api.nvim_list_wins()) do
       if vim.api.nvim_win_is_valid(winid) then
-        local llist = vim.fn.getloclist(winid, { all = 0 })
-        if not vim.tbl_isempty(llist.items) then
+        local llist = vim.fn.getloclist(winid, { all = 0, })
+        if not vim.tbl_isempty(list.items) then
           vim.fn.setloclist(winid, {}, "r", llist)
         end
       end
@@ -143,7 +143,7 @@ M.toggle = function(opts)
   ---@cast opts {loclist: boolean, focus: boolean, height?: integer, min_height: integer, max_height: integer, open_cmd_mods: quicker.OpenCmdMods, view: quicker.WinViewDict}
   local loclist_win = opts.loclist and 0 or nil
   if M.is_open(loclist_win) then
-    M.close({ loclist = opts.loclist })
+    M.close({ loclist = opts.loclist, })
   else
     M.open(opts)
   end
@@ -178,10 +178,14 @@ M.open = function(opts)
     end
   else
     height = opts.height or clamp(#vim.fn.getqflist())
-    vim.cmd.copen({
-      count = height,
-      mods = opts.open_cmd_mods,
-    })
+    -- For using tpope/vim-dispatch
+    local ok, _ = pcall(vim.cmd.Copen)
+    if not ok then
+      vim.cmd.copen({
+        count = height,
+        mods = opts.open_cmd_mods,
+      })
+    end
   end
 
   if not vim.tbl_isempty(opts.view) then
@@ -189,7 +193,7 @@ M.open = function(opts)
   end
 
   if not opts.focus then
-    vim.cmd.wincmd({ args = { "p" } })
+    vim.cmd.wincmd({ args = { "p", }, })
   end
 end
 
