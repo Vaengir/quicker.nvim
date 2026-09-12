@@ -1,3 +1,4 @@
+local FileCache = require("quicker.filecache")
 local config = require("quicker.config")
 local display = require("quicker.display")
 local util = require("quicker.util")
@@ -146,6 +147,7 @@ local function save_changes(bufnr, loclist_win)
   else
     qf_list = vim.fn.getqflist({ all = 0 })
   end
+  local filecache = FileCache.new(qf_list.items)
 
   local changes = {}
   local function add_change(buf, text_edit)
@@ -171,6 +173,13 @@ local function save_changes(bufnr, loclist_win)
   local exit_early = false
   local prefixes = load_qf_prefixes(bufnr)
   local ext_id_to_item_idx = vim.b[bufnr].qf_ext_id_to_item_idx
+
+  -- Special case: if all lines are deleted, nvim_buf_get_lines will return a list with one empty
+  -- string. We should convert that to an empty list
+  if #lines == 1 and lines[1] == "" then
+    lines = {}
+  end
+
   for i, line in ipairs(lines) do
     (function()
       local extmarks = util.get_lnum_extmarks(bufnr, i, line:len())
@@ -214,10 +223,7 @@ local function save_changes(bufnr, loclist_win)
 
       local item = qf_list.items[found_idx]
       if item.bufnr ~= 0 and item.lnum ~= 0 then
-        if not vim.api.nvim_buf_is_loaded(item.bufnr) then
-          vim.fn.bufload(item.bufnr)
-        end
-        local src_line = vim.api.nvim_buf_get_lines(item.bufnr, item.lnum - 1, item.lnum, false)[1]
+        local src_line = filecache:get_line(item.bufnr, item.lnum)
 
         -- add the whitespace prefix back to the parsed line text
         if config.trim_leading_whitespace == "common" then
@@ -273,6 +279,10 @@ local function save_changes(bufnr, loclist_win)
   local num_applied = 0
   local modified_bufs = {}
   for chg_buf, text_edits in pairs(changes) do
+    local was_not_loaded = not vim.api.nvim_buf_is_loaded(chg_buf)
+    if was_not_loaded then
+      vim.fn.bufload(chg_buf)
+    end
     modified_bufs[chg_buf] = true
     num_applied = num_applied + #text_edits
     vim.lsp.util.apply_text_edits(text_edits, chg_buf, "utf-8")
@@ -283,8 +293,12 @@ local function save_changes(bufnr, loclist_win)
       vim.api.nvim_buf_call(chg_buf, function()
         vim.cmd.update({ mods = { emsg_silent = true, noautocmd = true } })
       end)
+      if was_not_loaded then
+        pcall(vim.api.nvim_buf_delete, chg_buf, { unload = true })
+      end
     end
   end
+
   if num_applied > 0 then
     local num_files = vim.tbl_count(modified_bufs)
     local num_errors = vim.tbl_count(errors)

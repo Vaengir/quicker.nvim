@@ -71,10 +71,18 @@ M.get_filename_from_item = function(item)
 end
 
 local _col_width_cache = {}
+local _last_max_width = nil
+
 ---@param id integer
 ---@param items QuickFixItem[]
 ---@return integer
 local function get_cached_qf_col_width(id, items)
+  local current_max_width = config.max_filename_width()
+  if _last_max_width ~= current_max_width then
+    _col_width_cache = {}
+    _last_max_width = current_max_width
+  end
+
   local cached = _col_width_cache[id]
   if not cached or cached[2] ~= #items then
     local max_len = 0
@@ -532,13 +540,17 @@ function M.quickfixtextfunc(info)
   -- Render the filename+lnum and the headers as virtual text
   local start_idx = info.start_idx
   local set_virt_text
+  local attempts = 0
   set_virt_text = function()
     qf_list = load_qf(info)
     if qf_list.qfbufnr > 0 then
       -- Sometimes the buffer is not fully populated yet. If so, we should try again later.
       local num_lines = vim.api.nvim_buf_line_count(qf_list.qfbufnr)
       if num_lines < info.end_idx then
-        vim.schedule(set_virt_text)
+        if attempts < 5 then
+          vim.defer_fn(set_virt_text, 10 * math.pow(2, attempts))
+          attempts = attempts + 1
+        end
         return
       end
 
